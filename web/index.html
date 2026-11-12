@@ -1,0 +1,874 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>组织搭建台</title>
+<meta name="description" content="用组织积木拖拽搭建组织架构，AI 顾问逐节点点评（亮点、问题、高危），可与对标组织比较硬指标，导出 PDF。">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f766e' stroke-width='2' stroke-linecap='round'%3E%3Crect x='8' y='3' width='8' height='5' rx='1'/%3E%3Crect x='2' y='16' width='8' height='5' rx='1'/%3E%3Crect x='14' y='16' width='8' height='5' rx='1'/%3E%3Cpath d='M12 8v4M6 16v-4h12v4'/%3E%3C/svg%3E">
+<script>try{var m=localStorage.getItem("org-builder-mode");if(m==="dark"||m==="light")document.documentElement.dataset.mode=m}catch(e){}</script>
+<style>
+/* ── 主题:只用系统字体;颜色全部走变量,深浅两套 ── */
+:root {
+  --color-paper: #ffffff; --color-paper-2: #f4f5f7; --color-paper-3: #e8eaee;
+  --color-ink: #15181d; --color-ink-2: #3c424c; --color-muted: #667080;
+  --color-rule: #e3e5ea; --color-rule-2: #c5cad3;
+  --color-accent: #0f766e; --color-accent-hi: #115e59; --color-accent-ink: #ffffff; --color-focus: #2563eb;
+  --color-success: #1b7f4b; --color-error: #c62828; --color-risk: #b45309; --point-mid: #94a3b8;
+  --font-display: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Segoe UI", sans-serif;
+  --space-3xs: 0.125rem; --space-2xs: 0.25rem; --space-xs: 0.5rem; --space-sm: 0.75rem; --space-md: 1rem;
+  --space-lg: 1.25rem; --space-xl: 1.75rem; --space-2xl: 2.5rem; --gutter: 1rem;
+  --text-xs: 0.8125rem; --text-sm: 0.875rem; --text-md: 1rem; --text-lg: 1.125rem; --text-xl: 1.25rem; --text-2xl: 1.5rem;
+  --radius-card: 6px; --radius-pill: 999px; --rule-hair: 1px; --header-h: 3.25rem;
+  --dur-short: 140ms; --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --z-raised: 5; --z-nav: 20; --z-modal: 30; --z-tooltip: 40; --z-toast: 50;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-mode="light"]) {
+  --color-paper: #111417; --color-paper-2: #1a1e23; --color-paper-3: #262b32;
+  --color-ink: #eceff3; --color-ink-2: #c3c9d2; --color-muted: #939ca9;
+  --color-rule: #2a3038; --color-rule-2: #434b57;
+  --color-accent: #2dd4bf; --color-accent-hi: #5eead4; --color-accent-ink: #06221f; --color-focus: #7aa7ff;
+  --color-success: #34d399; --color-error: #f87171; --color-risk: #fbbf24; --point-mid: #64748b;
+  color-scheme: dark;
+} }
+:root[data-mode="dark"] {
+  --color-paper: #111417; --color-paper-2: #1a1e23; --color-paper-3: #262b32;
+  --color-ink: #eceff3; --color-ink-2: #c3c9d2; --color-muted: #939ca9;
+  --color-rule: #2a3038; --color-rule-2: #434b57;
+  --color-accent: #2dd4bf; --color-accent-hi: #5eead4; --color-accent-ink: #06221f; --color-focus: #7aa7ff;
+  --color-success: #34d399; --color-error: #f87171; --color-risk: #fbbf24; --point-mid: #64748b;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--color-paper); color: var(--color-ink); font: 400 var(--text-md)/1.6 var(--font-display); }
+h1, h2, h3, p { margin: 0; }
+button, input, select { font: inherit; color: inherit; }
+[hidden] { display: none !important; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.skip { position: absolute; left: var(--space-md); top: -100px; z-index: var(--z-toast); padding: var(--space-xs) var(--space-md); background: var(--color-ink); color: var(--color-paper); border-radius: var(--radius-card); }
+.skip:focus { top: var(--space-md); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation-duration: 0s !important; } }
+
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--space-xs); min-height: 44px; padding: 0 var(--space-lg); border: 0; border-radius: var(--radius-card); background: var(--color-accent); color: var(--color-accent-ink); font-weight: 500; font-size: var(--text-md); line-height: 1; white-space: nowrap; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out), box-shadow var(--dur-short) var(--ease-out); }
+.btn:hover { background: var(--color-accent-hi); }
+.btn:active { transform: translateY(1px); }
+.btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.btn:disabled { background: var(--color-paper-3); color: var(--color-muted); cursor: progress; }
+.btn--line { background: var(--color-paper); color: var(--color-ink-2); box-shadow: inset 0 0 0 var(--rule-hair) var(--color-rule-2); }
+.btn--line:hover { background: var(--color-paper-2); color: var(--color-ink); box-shadow: inset 0 0 0 var(--rule-hair) var(--color-muted); }
+.btn--sm { min-height: 36px; padding: 0 var(--space-md); font-size: var(--text-sm); }
+.btn--icon { width: 36px; padding: 0; }
+.field-row { display: grid; gap: var(--space-xs); }
+.field-row input, .field-row select { width: 100%; min-width: 0; height: 40px; padding: 0 var(--space-sm); border: 0; border-radius: var(--radius-card); background: var(--color-paper); color: var(--color-ink); box-shadow: inset 0 0 0 var(--rule-hair) var(--color-rule-2); caret-color: var(--color-accent); transition: box-shadow var(--dur-short) var(--ease-out); }
+.field-row input:hover, .field-row select:hover { box-shadow: inset 0 0 0 var(--rule-hair) var(--color-muted); }
+.field-row input:focus, .field-row select:focus { outline: none; box-shadow: inset 0 0 0 var(--rule-hair) var(--color-accent), 0 0 0 3px color-mix(in oklab, var(--color-accent) 22%, transparent); }
+
+/* ── 顶栏 ── */
+.top { position: fixed; inset: 0 0 auto; z-index: var(--z-nav); height: var(--header-h); display: flex; align-items: center; justify-content: space-between; gap: var(--space-md); padding: 0 var(--space-lg); background: var(--color-paper); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.top h1 { display: flex; align-items: center; gap: var(--space-xs); font-size: var(--text-lg); font-weight: 600; letter-spacing: -0.01em; }
+.top h1 svg { width: 20px; height: 20px; color: var(--color-accent); }
+.top p { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--text-sm); color: var(--color-muted); }
+.dial { display: inline-flex; gap: var(--space-3xs); padding: var(--space-3xs); border-radius: var(--radius-card); background: var(--color-paper-2); }
+.dial button { min-height: 30px; padding: 0 var(--space-sm); border: 0; border-radius: 4px; background: transparent; color: var(--color-muted); font-size: var(--text-xs); cursor: pointer; }
+.dial button:hover { color: var(--color-ink); }
+.dial button[aria-pressed="true"] { background: var(--color-paper); color: var(--color-ink); box-shadow: inset 0 0 0 var(--rule-hair) var(--color-rule-2); }
+.dial button:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+
+/* ── 三栏:积木库 / 画板 / 点评 ── */
+.lib { display: grid; grid-template-columns: minmax(0, 17rem) minmax(0, 1fr); align-items: start; min-height: calc(100svh - var(--header-h)); margin-top: var(--header-h); }
+.lib.has-review { grid-template-columns: minmax(0, 17rem) minmax(0, 1fr) minmax(0, 23rem); }
+
+.side { display: flex; flex-direction: column; align-self: stretch; min-height: 0; border-right: var(--rule-hair) solid var(--color-rule); }
+.side__head { position: sticky; top: var(--header-h); z-index: var(--z-raised); background: var(--color-paper); display: grid; gap: var(--space-xs); padding: var(--space-md) var(--space-lg); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.plist { padding: 0 var(--space-lg) var(--space-xl); }
+.pgrp { margin: var(--space-lg) 0 var(--space-xs); font-size: var(--text-xs); color: var(--color-muted); }
+.chips { display: flex; flex-wrap: wrap; gap: var(--space-2xs); }
+.chip { position: relative; display: inline-flex; align-items: center; gap: var(--space-2xs); min-height: 32px; padding: 0 var(--space-sm); border-radius: var(--radius-card); background: var(--color-paper); color: var(--color-ink-2); font-size: var(--text-xs); box-shadow: inset 0 0 0 var(--rule-hair) var(--color-rule-2); cursor: grab; -webkit-user-select: none; user-select: none; transition: background-color var(--dur-short) var(--ease-out), color var(--dur-short) var(--ease-out), box-shadow var(--dur-short) var(--ease-out); }
+.chip:hover { color: var(--color-ink); background: var(--color-paper-2); box-shadow: inset 0 0 0 var(--rule-hair) var(--color-muted); }
+.chip:active { cursor: grabbing; transform: translateY(1px); }
+.chip:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.chip.t1 { box-shadow: inset 2px 0 0 var(--point-mid), inset 0 0 0 var(--rule-hair) var(--color-rule-2); }
+.chip.t0 { box-shadow: inset 2px 0 0 var(--color-ink-2), inset 0 0 0 var(--rule-hair) var(--color-rule-2); }
+.chip .cx { display: grid; place-items: center; width: 20px; height: 20px; margin-right: calc(-1 * var(--space-2xs)); padding: 0; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-muted); cursor: pointer; }
+.chip .cx svg { width: 12px; height: 12px; }
+.chip .cx:hover { color: var(--color-error); background: var(--color-paper-3); }
+.chip .cx:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+.pempty { margin-top: var(--space-lg); font-size: var(--text-sm); color: var(--color-muted); }
+.pfoot > .btn { width: 100%; }
+.cform { display: grid; gap: var(--space-xs); margin-top: var(--space-sm); }
+.cform .row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-xs); }
+
+.board { position: sticky; top: var(--header-h); display: flex; flex-direction: column; min-width: 0; height: calc(100svh - var(--header-h)); min-height: 30rem; }
+.toolbar { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: var(--space-sm) var(--space-lg); padding: var(--space-sm) var(--space-lg); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.oname { display: grid; gap: var(--space-3xs); min-width: 0; }
+.oname label { font-size: var(--text-xs); color: var(--color-muted); }
+.oname input { width: 16ch; max-width: 100%; padding: 0 0 var(--space-3xs); border: 0; border-bottom: var(--rule-hair) dashed var(--color-muted); background: transparent; color: var(--color-ink); font-size: var(--text-xl); font-weight: 600; letter-spacing: -0.01em; caret-color: var(--color-accent); }
+.oname input:hover { border-bottom-color: var(--color-ink-2); }
+.oname input:focus { outline: none; border-bottom: var(--rule-hair) solid var(--color-accent); }
+.tools { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-xs); }
+.tools .btn svg { width: 16px; height: 16px; }
+.tools .gap { width: var(--space-xs); }
+
+.stage { position: relative; flex: 1; min-height: 0; overflow: hidden; cursor: grab; touch-action: none; background: var(--color-paper); }
+.stage.grabbing { cursor: grabbing; }
+#svg { display: block; width: 100%; height: 100%; }
+/* 从积木库拖积木进来时,让画板整体作为放置目标:鼠标下面的元素不来回切换,快速松手也不会丢掉这次放置 */
+.stage.dnd > * { pointer-events: none; }
+#svg text { -webkit-user-select: none; user-select: none; }
+#svg .node { cursor: pointer; }
+#svg .node:focus { outline: none; }
+#svg .node:not(.is-sel):not(.has-f):hover .box { stroke: var(--color-muted); }
+#svg .node:focus-visible .box { stroke: var(--color-focus); stroke-width: 2px; }
+#svg .pin { cursor: help; }
+.coach { position: absolute; left: 50%; top: 58%; transform: translateX(-50%); width: min(30rem, 90%); text-align: center; pointer-events: none; font-size: var(--text-md); color: var(--color-ink-2); }
+.coach small { display: block; margin-top: var(--space-xs); font-size: var(--text-sm); color: var(--color-muted); }
+.hint { position: absolute; left: var(--space-lg); bottom: var(--space-lg); max-width: 46ch; font-size: var(--text-xs); color: var(--color-muted); pointer-events: none; }
+
+.nodebar { position: absolute; z-index: var(--z-raised); display: flex; gap: var(--space-3xs); padding: var(--space-3xs); border-radius: var(--radius-pill); background: var(--color-paper-2); box-shadow: inset 0 0 0 var(--rule-hair) var(--color-rule-2); }
+.nodebar button { display: grid; place-items: center; width: 36px; height: 36px; border: 0; border-radius: var(--radius-pill); background: transparent; color: var(--color-ink-2); cursor: pointer; }
+.nodebar button:hover { background: var(--color-paper-3); color: var(--color-ink); }
+.nodebar button.del:hover { color: var(--color-error); }
+.nodebar button:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+.nodebar svg { width: 16px; height: 16px; }
+.rn { position: absolute; z-index: var(--z-raised); }
+.rn input { width: 100%; height: 36px; padding: 0 var(--space-xs); border: 0; border-radius: var(--radius-card); background: var(--color-paper-2); color: var(--color-ink); box-shadow: inset 0 0 0 var(--rule-hair) var(--color-accent); text-align: center; font-size: var(--text-sm); caret-color: var(--color-accent); }
+.rn input:focus { outline: none; box-shadow: inset 0 0 0 var(--rule-hair) var(--color-accent), 0 0 0 3px color-mix(in oklab, var(--color-accent) 22%, transparent); }
+
+.tip { position: fixed; z-index: var(--z-tooltip); max-width: 20rem; padding: var(--space-sm) var(--space-md); border-radius: var(--radius-card); background: var(--color-paper-3); box-shadow: inset 0 0 0 var(--rule-hair) var(--color-rule-2); font-size: var(--text-xs); line-height: 1.6; color: var(--color-ink-2); pointer-events: none; }
+.tip b { display: block; margin-bottom: var(--space-3xs); font-size: var(--text-sm); font-weight: 600; }
+.lv-good { color: var(--color-success); } .lv-bad { color: var(--color-error); } .lv-risk { color: var(--color-risk); }
+.toast { position: fixed; left: 50%; bottom: var(--space-lg); z-index: var(--z-toast); transform: translateX(-50%); max-width: 90vw; padding: var(--space-sm) var(--space-lg); border-radius: var(--radius-card); background: var(--color-ink); color: var(--color-paper); font-size: var(--text-sm); pointer-events: none; }
+
+.review { position: sticky; top: var(--header-h); height: calc(100svh - var(--header-h)); display: flex; flex-direction: column; min-width: 0; border-left: var(--rule-hair) solid var(--color-rule); background: var(--color-paper); }
+.rv-head { display: flex; justify-content: space-between; align-items: center; gap: var(--space-md); padding: var(--space-sm) var(--space-lg); border-bottom: var(--rule-hair) solid var(--color-rule); }
+.rv-head h2 { font-size: var(--text-lg); font-weight: 600; }
+.rv-body { flex: 1; min-height: 0; overflow-y: auto; padding: var(--space-lg); scrollbar-width: thin; }
+.rv-empty { padding: var(--space-lg) 0; font-size: var(--text-sm); color: var(--color-muted); }
+.rv-empty .btn { margin-top: var(--space-md); }
+.rv-demo { margin-bottom: var(--space-lg); padding: var(--space-sm) var(--space-md); border-radius: var(--radius-card); background: var(--color-paper-2); box-shadow: inset 2px 0 0 var(--color-risk); font-size: var(--text-xs); color: var(--color-ink-2); }
+.rv-doc { font-size: var(--text-sm); line-height: 1.75; color: var(--color-ink-2); }
+.rv-doc h3 { margin: var(--space-lg) 0 var(--space-2xs); font-size: var(--text-sm); font-weight: 600; color: var(--color-ink); }
+.rv-doc h3:first-child { margin-top: 0; }
+.rv-doc b { font-weight: 600; color: var(--color-ink); }
+.rv-doc ul { margin: var(--space-2xs) 0 var(--space-xs); padding-left: var(--space-lg); }
+.rv-doc p { margin: var(--space-2xs) 0; }
+.rv-sec { margin: var(--space-xl) 0 var(--space-sm); font-size: var(--text-sm); font-weight: 600; color: var(--color-ink); }
+.rv-sec:first-child { margin-top: 0; }
+.fnd { display: grid; gap: var(--space-3xs); width: 100%; margin-bottom: var(--space-xs); padding: var(--space-sm) var(--space-md); border: 0; border-radius: var(--radius-card); background: var(--color-paper-2); text-align: left; box-shadow: inset 2px 0 0 currentColor; cursor: pointer; transition: background-color var(--dur-short) var(--ease-out); }
+.fnd:hover { background: var(--color-paper-3); }
+.fnd:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 2px; }
+.fnd .fh { font-size: var(--text-sm); color: var(--color-ink); }
+.fnd .fh span { margin-right: var(--space-xs); }
+.fnd .fr { font-size: var(--text-xs); color: var(--color-muted); line-height: 1.55; }
+.fnd.good { color: var(--color-success); } .fnd.bad { color: var(--color-error); } .fnd.risk { color: var(--color-risk); }
+.cmp { width: 100%; border-collapse: collapse; font-size: var(--text-xs); }
+.cmp th, .cmp td { padding: var(--space-xs) var(--space-xs) var(--space-xs) 0; border-bottom: var(--rule-hair) solid var(--color-rule); text-align: left; }
+.cmp th { font-weight: 400; color: var(--color-muted); border-bottom-color: var(--color-rule-2); }
+.cmp td { color: var(--color-ink-2); font-variant-numeric: tabular-nums; }
+.cmp td:first-child { color: var(--color-ink); }
+.fnchips { display: flex; flex-wrap: wrap; gap: var(--space-2xs); margin-top: var(--space-sm); }
+.fnchips i { font-style: normal; padding: var(--space-3xs) var(--space-xs); border-radius: var(--radius-card); font-size: var(--text-xs); color: var(--color-ink-2); box-shadow: inset 0 0 0 var(--rule-hair) var(--color-rule-2); }
+.fnchips i.miss { color: var(--color-error); box-shadow: inset 0 0 0 var(--rule-hair) color-mix(in oklab, var(--color-error) 45%, transparent); }
+.cmp-note { margin-top: var(--space-xs); font-size: var(--text-xs); color: var(--color-muted); }
+.spin { display: inline-block; width: 14px; height: 14px; margin-right: var(--space-xs); border: 1.5px solid var(--color-rule-2); border-top-color: var(--color-accent); border-radius: 50%; vertical-align: -2px; animation: sp 0.8s linear infinite; }
+@keyframes sp { to { transform: rotate(360deg); } }
+
+/* ── 选对标组织的弹窗 ── */
+.bmodal { width: min(92vw, 30rem); max-height: min(80vh, 40rem); padding: 0; border: 0; border-radius: 10px; background: var(--color-paper); color: var(--color-ink); box-shadow: 0 0 0 var(--rule-hair) var(--color-rule-2), 0 20px 60px rgb(0 0 0 / 0.25); }
+.bmodal[open] { display: flex; flex-direction: column; }
+.bmodal::backdrop { background: rgb(0 0 0 / 0.4); }
+.bm-head { position: relative; display: grid; gap: var(--space-xs); padding: var(--space-lg) var(--space-lg) var(--space-sm); }
+.bm-head h2 { font-size: var(--text-xl); font-weight: 600; padding-right: var(--space-2xl); }
+.bm-head p { font-size: var(--text-sm); color: var(--color-ink-2); }
+.bm-close { position: absolute; top: var(--space-md); right: var(--space-md); }
+.bm-list { flex: 1; min-height: 8rem; overflow-y: auto; padding: 0 var(--space-md) var(--space-md); scrollbar-width: thin; }
+.bm-grp { margin: var(--space-md) var(--space-sm) var(--space-3xs); font-size: var(--text-xs); color: var(--color-muted); }
+.bm-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-sm); align-items: center; width: 100%; min-height: 40px; padding: var(--space-xs) var(--space-sm); border: 0; border-radius: var(--radius-card); background: transparent; color: var(--color-ink-2); font-size: var(--text-sm); text-align: left; cursor: pointer; }
+.bm-row:hover { background: var(--color-paper-2); color: var(--color-ink); }
+.bm-row:focus-visible { outline: 2px solid var(--color-focus); outline-offset: -2px; }
+.bm-row .c { font-size: var(--text-xs); color: var(--color-muted); font-variant-numeric: tabular-nums; }
+.bm-foot { padding: var(--space-md) var(--space-lg); border-top: var(--rule-hair) solid var(--color-rule); }
+.bm-foot .btn { width: 100%; }
+
+@media (max-width: 75rem) {
+  .lib.has-review { grid-template-columns: minmax(0, 15rem) minmax(0, 1fr) minmax(0, 20rem); }
+  .tools .lbl { display: none; }
+  .tools .btn--sm { padding: 0 var(--space-sm); }
+  .tools .btn--sm.btn--icon { padding: 0; }
+  .tools .btn--sm.keep .lbl { display: inline; }
+  .top p { display: none; }
+}
+@media (max-width: 60rem) {
+  .lib, .lib.has-review { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  .side { border-right: 0; border-bottom: var(--rule-hair) solid var(--color-rule); }
+  .side__head { position: static; padding: var(--space-sm) var(--gutter); }
+  .plist { max-height: 11rem; overflow-y: auto; padding-inline: var(--gutter); padding-bottom: var(--space-md); }
+  .plist .pgrp:first-child { margin-top: var(--space-sm); }
+  .board { position: relative; top: auto; height: calc(100svh - var(--header-h)); min-height: 26rem; }
+  .toolbar { padding: var(--space-sm) var(--gutter); }
+  .top { padding: 0 var(--gutter); }
+  .hint { display: none; }
+  .review { position: fixed; z-index: var(--z-modal); top: var(--header-h); right: 0; bottom: 0; height: auto; width: min(92vw, 23rem); box-shadow: -12px 0 40px rgb(0 0 0 / 0.2); }
+}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">跳到正文</a>
+<header class="top">
+  <h1><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="3" width="8" height="5" rx="1"/><rect x="2" y="16" width="8" height="5" rx="1"/><rect x="14" y="16" width="8" height="5" rx="1"/><path d="M12 8v4M6 16v-4h12v4"/></svg>组织搭建台</h1>
+  <p>拖积木搭组织，再请 AI 顾问逐个节点点评。</p>
+  <div class="dial" role="group" aria-label="深色或浅色">
+    <button type="button" data-mode-set="dark" aria-pressed="false">深色</button>
+    <button type="button" data-mode-set="light" aria-pressed="false">浅色</button>
+  </div>
+</header>
+<main id="main">
+<section class="lib" id="lib" aria-label="组织搭建台">
+  <aside class="side" aria-label="组织积木">
+    <div class="side__head">
+      <div class="field-row">
+        <label for="pq" class="visually-hidden">搜索组织积木</label>
+        <input id="pq" type="search" placeholder="搜积木" autocomplete="off">
+      </div>
+      <div class="pfoot">
+        <button type="button" class="btn btn--line btn--sm" id="addcustom" aria-expanded="false" aria-controls="cform">自建积木</button>
+        <form class="cform" id="cform" hidden onsubmit="addCustom();return false">
+          <div class="field-row">
+            <label for="cname" class="visually-hidden">积木名称</label>
+            <input id="cname" type="text" maxlength="16" placeholder="积木名称，如：氢能源事业部" autocomplete="off">
+          </div>
+          <div class="row field-row">
+            <label for="ccat" class="visually-hidden">积木分类</label>
+            <select id="ccat"></select>
+            <button type="submit" class="btn btn--sm">添加</button>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="plist" id="plist"></div>
+  </aside>
+
+  <div class="board">
+    <div class="toolbar">
+      <div class="oname">
+        <label for="oname">组织名称</label>
+        <input id="oname" type="text" maxlength="24" title="点击修改组织名称">
+      </div>
+      <div class="tools" role="toolbar" aria-label="画板操作">
+        <button type="button" class="btn btn--line btn--sm" id="t-open" title="全部展开"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M21 8V5a2 2 0 0 0-2-2h-3"/><path d="M3 16v3a2 2 0 0 0 2 2h3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></svg><span class="lbl">展开</span></button>
+        <button type="button" class="btn btn--line btn--sm" id="t-fold" title="全部收起"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 9H4V4"/><path d="M15 9h5V4"/><path d="M9 15H4v5"/><path d="M15 15h5v5"/></svg><span class="lbl">收起</span></button>
+        <span class="gap" aria-hidden="true"></span>
+        <button type="button" class="btn btn--line btn--sm btn--icon" id="t-out" aria-label="缩小" title="缩小"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14"/></svg></button>
+        <button type="button" class="btn btn--line btn--sm btn--icon" id="t-fit" aria-label="适应窗口" title="适应窗口"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/></svg></button>
+        <button type="button" class="btn btn--line btn--sm btn--icon" id="t-in" aria-label="放大" title="放大"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M12 5v14"/></svg></button>
+        <span class="gap" aria-hidden="true"></span>
+        <button type="button" class="btn btn--line btn--sm" id="t-clear" title="清空画板重新搭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><span class="lbl">清空</span></button>
+        <button type="button" class="btn btn--line btn--sm" id="t-pdf" title="导出 PDF（打印保存）"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg><span class="lbl">导出 PDF</span></button>
+        <button type="button" class="btn btn--sm keep" id="btn-review" title="AI 顾问点评这个组织"><span class="lbl">AI 点评</span></button>
+      </div>
+    </div>
+
+    <div class="stage" id="stage">
+      <svg id="svg" aria-label="组织架构画板"></svg>
+      <p class="coach" id="coach" hidden>从左侧拖一块积木到「集团总部」上，作为它的下级。<small>也可以先点选一个节点，再点积木直接加入；双击节点改名字。</small></p>
+      <p class="hint">拖积木到节点上添加下级；点节点选中，双击改名；拖节点到另一个节点上改隶属；点节点下方的圆钮收起或展开；滚轮缩放。</p>
+      <div class="nodebar" id="nodebar" hidden>
+        <button type="button" id="nb-add" title="添加下级节点" aria-label="添加下级节点"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg></button>
+        <button type="button" id="nb-rn" title="重命名" aria-label="重命名节点"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg></button>
+        <button type="button" id="nb-del" class="del" title="删除（含下级）" aria-label="删除节点及其下级"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg></button>
+      </div>
+      <div class="rn" id="rn" hidden><label for="rn-in" class="visually-hidden">节点名称</label><input id="rn-in" type="text" maxlength="24"></div>
+    </div>
+  </div>
+
+  <aside class="review" id="review" aria-labelledby="rv-title" hidden>
+    <div class="rv-head">
+      <h2 id="rv-title">AI 组织点评</h2>
+      <button type="button" class="btn btn--line btn--sm btn--icon" id="rv-close" aria-label="关闭点评面板"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="width:16px;height:16px"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    </div>
+    <div class="rv-body" id="rv-body" aria-live="polite"></div>
+  </aside>
+</section>
+</main>
+
+<div class="tip" id="tip" role="tooltip" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+<dialog class="bmodal" id="bmodal" aria-labelledby="bm-title">
+  <div class="bm-head">
+    <h2 id="bm-title">选择对标组织</h2>
+    <p>可选。选一个对标组织，会比较你们的层级深度、管理幅度和职能配置；也可以不对标，直接点评。</p>
+    <button type="button" class="btn btn--line btn--sm btn--icon bm-close" id="bm-close" aria-label="关闭"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true" style="width:16px;height:16px"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <div class="field-row">
+      <label for="bq" class="visually-hidden">搜索对标组织</label>
+      <input id="bq" type="search" placeholder="搜名称" autocomplete="off">
+    </div>
+  </div>
+  <div class="bm-list" id="bm-list"><p class="rv-empty">正在加载对标数据。</p></div>
+  <div class="bm-foot"><button type="button" class="btn btn--line btn--sm" id="bm-skip">不对标，直接点评</button></div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>document.querySelectorAll(s);
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");}
+function toast(m){ const t=$("#toast"); t.textContent=m; t.hidden=false; clearTimeout(t._h); t._h=setTimeout(()=>{t.hidden=true;},2200); }
+const STORE_KEY="org-builder-v1", MODE_KEY="org-builder-mode";
+const OFFLINE_MSG="连不上点评服务。请用 python3 server.py 启动后，从它给出的地址打开本页。";
+
+/* ═══════════ 深浅色:默认跟随系统,点过之后记住 ═══════════ */
+(()=>{
+  const root=document.documentElement, mq=matchMedia('(prefers-color-scheme: dark)');
+  const effective=()=>root.dataset.mode||(mq.matches?'dark':'light');
+  const sync=()=>{ $$('[data-mode-set]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.modeSet===effective()))); document.dispatchEvent(new CustomEvent('colourway')); };
+  $$('[data-mode-set]').forEach(b=>b.addEventListener('click',()=>{ root.dataset.mode=b.dataset.modeSet; try{localStorage.setItem(MODE_KEY,b.dataset.modeSet);}catch(e){} sync(); }));
+  mq.addEventListener('change',()=>{ if(!root.dataset.mode) sync(); });
+  addEventListener('DOMContentLoaded',sync);
+})();
+
+/* ═══════════ 颜色:从 CSS 变量读,转成 rgb(导出图片也能用) ═══════════ */
+const probe=document.createElement('i'); probe.style.display='none';
+const cvx=document.createElement('canvas').getContext('2d',{willReadFrequently:true});
+function tok(name){
+  if(!probe.isConnected) document.body.appendChild(probe);
+  probe.style.color=`var(${name})`; const c=getComputedStyle(probe).color;
+  cvx.clearRect(0,0,1,1); cvx.fillStyle='#000'; cvx.fillStyle=c; cvx.fillRect(0,0,1,1);
+  const d=cvx.getImageData(0,0,1,1).data; return `rgb(${d[0]},${d[1]},${d[2]})`;
+}
+let P={};
+function readPalette(){
+  P={paper:tok('--color-paper'),paper2:tok('--color-paper-2'),paper3:tok('--color-paper-3'),ink:tok('--color-ink'),ink2:tok('--color-ink-2'),
+     muted:tok('--color-muted'),rule2:tok('--color-rule-2'),accent:tok('--color-accent'),mid:tok('--point-mid'),
+     good:tok('--color-success'),bad:tok('--color-error'),risk:tok('--color-risk'),
+     font:getComputedStyle(document.documentElement).getPropertyValue('--font-display').trim().replace(/"/g,"'")};
+}
+
+/* ═══════════ 积木库:[分类, [[名称, 层级 0/1/2], ...]]。想增减预设积木,改这里 ═══════════ */
+const CATS=[
+  ["治理与总部",[["集团总部",0],["总裁办",2],["董事会办公室",2],["监事会办公室",2],["战略委员会",2],["投资决策委员会",2],["审计委员会",2],["风控委员会",2],["党群工作部",2]]],
+  ["总部职能",[["人力资源部",2],["财务部",2],["法务部",2],["审计部",2],["战略发展部",2],["信息技术部",2],["行政管理部",2],["采购部",2],["品牌公关部",2],["内控合规部",2],["证券事务部",2],["企业文化部",2]]],
+  ["业务单元",[["事业群",1],["事业部",1],["业务板块",1],["产品线",1],["BU 业务单元",1],["项目部",2],["大客户部",2]]],
+  ["公司实体",[["子公司",1],["分公司",1],["合资公司",1],["控股平台",1],["海外公司",1],["上市主体",1]]],
+  ["研发创新",[["研究院",1],["研发中心",2],["技术中心",2],["实验室",2],["设计中心",2],["创新孵化器",2],["博士后工作站",2]]],
+  ["生产供应",[["制造基地",1],["工厂",2],["生产车间",2],["供应链中心",2],["质量管理部",2],["仓储物流中心",2],["设备管理部",2],["安全环保部",2]]],
+  ["市场与销售",[["营销中心",1],["销售部",2],["市场部",2],["品牌部",2],["电商部",2],["客户服务中心",2],["售后服务部",2],["渠道管理部",2]]],
+  ["区域组织",[["区域总部",1],["大区",1],["省区公司",2],["办事处",2],["海外区域中心",1],["代表处",2]]],
+  ["共享与支持",[["财务共享中心",2],["人力共享中心",2],["IT共享中心",2],["数据中心",2],["企业大学",2],["资金管理中心",2],["结算中心",2]]],
+  ["数字化与新兴",[["数字化转型办公室",2],["大数据部",2],["AI 实验室",2],["智能制造部",2],["电商公司",1],["产业互联网平台",1]]],
+];
+let CUSTOMS=[]; // [{name,cat,tier:2}]
+const XICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>';
+
+function renderPalette(q){
+  q=(q||"").trim().toLowerCase();
+  let html="";
+  const groups=CATS.map(([cat,arr])=>[cat,arr.map(([n,t])=>({name:n,cat,tier:t,custom:false}))]);
+  if(CUSTOMS.length) groups.push(["自建积木",CUSTOMS.map(c=>({...c,custom:true}))]);
+  groups.forEach(([cat,arr])=>{
+    const rows=arr.filter(b=>!q||b.name.toLowerCase().includes(q));
+    if(!rows.length) return;
+    html+=`<p class="pgrp">${esc(cat)}</p><div class="chips">`;
+    rows.forEach(b=>{
+      html+=`<span class="chip t${b.tier}${b.custom?' custom':''}" draggable="true" role="button" tabindex="0" data-name="${esc(b.name)}" data-cat="${esc(b.cat)}" data-tier="${b.tier}" title="拖到画板节点上，或点击加到选中节点下" aria-label="添加积木 ${esc(b.name)}">${esc(b.name)}${b.custom?`<button type="button" class="cx" data-del="${esc(b.name)}" title="删除该自建积木" aria-label="删除自建积木 ${esc(b.name)}">${XICON}</button>`:""}</span>`;
+    });
+    html+=`</div>`;
+  });
+  $("#plist").innerHTML=html||'<p class="pempty">没有匹配的积木。</p>';
+  $$("#plist .chip").forEach(ch=>{
+    ch.addEventListener("dragstart",e=>{ dragBlock={name:ch.dataset.name,cat:ch.dataset.cat,tier:+ch.dataset.tier}; $("#stage").classList.add("dnd"); e.dataTransfer.effectAllowed="copy"; try{e.dataTransfer.setData("text/plain",ch.dataset.name);}catch(_){} });
+    ch.addEventListener("dragend",()=>{ dragBlock=null; $("#stage").classList.remove("dnd"); setDropHover(null); });
+    ch.addEventListener("click",e=>{ const d=e.target.closest(".cx"); if(d){ delCustom(d.dataset.del); e.stopPropagation(); return; } addChild(sel||ORG.root, ch.dataset.name, ch.dataset.cat, +ch.dataset.tier); });
+    ch.addEventListener("keydown",e=>{ if(e.target!==ch) return; if(e.key==="Enter"||e.key===" "){ e.preventDefault(); addChild(sel||ORG.root, ch.dataset.name, ch.dataset.cat, +ch.dataset.tier); } });
+  });
+}
+$("#pq").addEventListener("input",e=>renderPalette(e.target.value));
+
+function addCustom(){
+  const n=$("#cname").value.trim();
+  if(!n) return toast("先给积木起个名字");
+  if(CUSTOMS.some(c=>c.name===n)) return toast("已有同名自建积木");
+  CUSTOMS.push({name:n,cat:$("#ccat").value,tier:2});
+  $("#cname").value=""; renderPalette($("#pq").value); saveState(); toast(`已添加自建积木「${n}」`);
+}
+function delCustom(n){ CUSTOMS=CUSTOMS.filter(c=>c.name!==n); renderPalette($("#pq").value); saveState(); }
+
+/* ═══════════ 数据模型 ═══════════ */
+let ORG=null, seq=1;
+function newNode(name,cat,tier){ return {uid:"n"+(seq++), name, type:name, cat, tier, children:[]}; }
+function defaultOrg(){ seq=1; return {name:"我的集团", root:{uid:"n0",name:"集团总部",type:"集团总部",cat:"治理与总部",tier:0,children:[]}}; }
+function findByUid(uid,n){ n=n||ORG.root; if(n.uid===uid) return n;
+  for(const k of (n.children||[])){ const r=findByUid(uid,k); if(r) return r; } return null; }
+function parentOf(uid,n){ n=n||ORG.root;
+  for(const k of (n.children||[])){ if(k.uid===uid) return n; const r=parentOf(uid,k); if(r) return r; }
+  return null; }
+function isDesc(anc,uid){ let f=false; (function w(n){ if(n.uid===uid) f=true; (n.children||[]).forEach(w); })(anc); return f; }
+
+function saveState(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify({seq, org:ORG, customs:CUSTOMS})); }catch(e){}
+}
+function loadState(){
+  try{ const j=JSON.parse(localStorage.getItem(STORE_KEY)||"null");
+    if(j&&j.org&&j.org.root){ ORG=j.org; seq=j.seq||100; CUSTOMS=j.customs||[]; return; } }catch(e){}
+  ORG=defaultOrg();
+}
+
+/* ═══════════ 画板引擎(布局/绘制) ═══════════ */
+const NW=176, NH=58, HGAP=18, VGAP=50;
+let tx=0, ty=0, sc=1, nodes=[], links=[], bounds={w:0,h:0};
+let sel=null, dragBlock=null, dropHoverUid=null, FIND={};
+
+function wrapName(s,maxw,fs){
+  s=String(s||""); const lines=[]; let line="";
+  const w=ch=>/[\x00-\xff]/.test(ch)?fs*0.56:fs*1.0; let cw=0;
+  for(const ch of s){ const cwi=w(ch);
+    if(cw+cwi>maxw){ lines.push(line); line=ch; cw=cwi; if(lines.length===2) break; }
+    else{ line+=ch; cw+=cwi; } }
+  if(lines.length<2) lines.push(line);
+  else{ const consumed=lines[0].length+lines[1].length; if(s.length>consumed) lines[1]=lines[1].replace(/.$/,'…'); }
+  return lines.filter(x=>x!=="");
+}
+function layout(){
+  nodes=[]; links=[]; let cursor=0, maxD=0;
+  (function walk(n,d,parent){
+    n._id=nodes.length; n._depth=d; nodes.push(n); maxD=Math.max(maxD,d);
+    const kids=(n.children&&!n._collapsed)?n.children:[];
+    if(!kids.length){ n._x=cursor; cursor+=NW+HGAP; }
+    else{ kids.forEach(k=>walk(k,d+1,n)); n._x=(kids[0]._x+kids[kids.length-1]._x)/2; }
+    n._y=d*(NH+VGAP);
+    if(parent) links.push([parent,n]);
+  })(ORG.root,0,null);
+  bounds.w=cursor||NW; bounds.h=(maxD+1)*(NH+VGAP);
+}
+const LV_NAME={good:'亮点',bad:'待改进',risk:'高危提示'};
+function pinGlyph(level,px,py,col){
+  if(level==='good') return `<path d="M${px-3.5} ${py}l2.4 2.5 4.6-5" fill="none" stroke="${col}" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>`;
+  if(level==='bad') return `<path d="M${px-3} ${py-3}l6 6M${px+3} ${py-3}l-6 6" stroke="${col}" stroke-width="1.6" stroke-linecap="round"/>`;
+  return `<path d="M${px} ${py-4}v4.5" stroke="${col}" stroke-width="1.8" stroke-linecap="round"/><circle cx="${px}" cy="${py+3.4}" r="1.1" fill="${col}"/>`;
+}
+function nodeSVG(n, plain){
+  const x=n._x, y=n._y, f=FIND[n.uid], t0=n.tier;
+  const nm=wrapName(n.name, NW-22, 13);
+  const hasKids=n.children&&n.children.length;
+  const isSel=!plain&&sel&&sel.uid===n.uid;
+  const fill=t0===0?P.paper3:t0===1?P.paper2:P.paper;
+  let stroke=t0===0?P.ink2:P.rule2, sw=1;
+  if(f){ stroke=P[f.level]||P.rule2; sw=1.5; }
+  if(isSel){ stroke=P.accent; sw=1.5; }
+  let t=`<g class="node${isSel?' is-sel':''}${f?' has-f':''}" data-id="${n._id}"`+(plain?'':` tabindex="0" role="button" aria-label="${esc(n.name)}${isSel?'，已选中':''}"`)+`>`;
+  t+=`<rect class="box" x="${x+0.5}" y="${y+0.5}" width="${NW-1}" height="${NH-1}" rx="4" fill="${fill}" stroke="${stroke}" stroke-width="${sw}" vector-effect="non-scaling-stroke"/>`;
+  if(t0===1&&!f&&!isSel) t+=`<rect x="${x+1}" y="${y+10}" width="2" height="${NH-20}" fill="${P.mid}"/>`;
+  const baseY=nm.length>1? y+20 : y+28;
+  nm.forEach((ln,i)=>{ t+=`<text x="${x+NW/2}" y="${baseY+i*15}" text-anchor="middle" font-size="13" font-weight="${t0===0?600:400}" fill="${t0===2?P.ink2:P.ink}">${esc(ln)}</text>`; });
+  const subT=n.name!==n.type? n.type : n.cat;
+  t+=`<text x="${x+NW/2}" y="${y+NH-12}" text-anchor="middle" font-size="10" fill="${P.muted}">${esc(subT)}</text>`;
+  if(hasKids){ const cy=y+NH, cx=x+NW/2;
+    t+=`<g class="cbtn" data-id="${n._id}" style="cursor:pointer"><circle cx="${cx}" cy="${cy}" r="8" fill="${P.paper}" stroke="${P.rule2}" vector-effect="non-scaling-stroke"/>`;
+    t+=`<path d="M${cx-3.5} ${cy}H${cx+3.5}${n._collapsed?`M${cx} ${cy-3.5}V${cy+3.5}`:''}" stroke="${P.ink2}" stroke-width="1.2" fill="none"/>`;
+    if(n._collapsed) t+=`<text x="${cx+13}" y="${cy+3.5}" font-size="10" fill="${P.muted}">${countDesc(n)}</text>`;
+    t+=`</g>`; }
+  if(f){ const px=x+NW-4, py=y+4;
+    t+=`<g class="pin" data-uid="${n.uid}"><circle cx="${px}" cy="${py}" r="9" fill="${P[f.level]}" stroke="${P.paper}" stroke-width="1.5"/>${pinGlyph(f.level,px,py,P.paper)}</g>`; }
+  t+=`</g>`; return t;
+}
+function countDesc(n){let c=0;(function w(x){(x.children||[]).forEach(k=>{c++;w(k);});})(n);return c;}
+function linkSVG(p,c){
+  const px=p._x+NW/2, py=p._y+NH, cx=c._x+NW/2, cy=c._y, midY=py+VGAP/2;
+  return `<path d="M${px} ${py} V${midY} H${cx} V${cy}" fill="none" stroke="${P.rule2}" stroke-width="1" vector-effect="non-scaling-stroke"/>`;
+}
+function treeSVG(plain){ return `<g font-family="${P.font}">`+links.map(([p,c])=>linkSVG(p,c)).join("")+nodes.map(n=>nodeSVG(n,plain)).join("")+`</g>`; }
+function gridStep(){ return 28*(sc<0.35?4:sc<0.7?2:1); }
+function paint(){
+  const svg=$("#svg"), r=$("#stage").getBoundingClientRect();
+  const focusedId=document.activeElement&&document.activeElement.closest&&document.activeElement.closest("#svg .node")?document.activeElement.dataset.id:null;
+  svg.setAttribute("viewBox",`0 0 ${Math.max(r.width,1)} ${Math.max(r.height,1)}`);
+  const g=gridStep();
+  svg.innerHTML=`<defs><pattern id="dots" width="${g}" height="${g}" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.9" fill="${P.rule2}"/></pattern></defs>`+
+    `<rect width="100%" height="100%" fill="url(#dots)"/><g id="view">${treeSVG(false)}<rect id="drophl" width="${NW+10}" height="${NH+10}" rx="7" fill="none" stroke="${P.accent}" stroke-width="2" stroke-dasharray="4 3" vector-effect="non-scaling-stroke" pointer-events="none" visibility="hidden"/></g>`;
+  showDropHover();
+  $("#coach").hidden=!(nodes.length<=1 && !Object.keys(FIND).length);
+  applyView();
+  if(focusedId!=null){ const el=svg.querySelector(`.node[data-id="${focusedId}"]`); if(el) el.focus({preventScroll:true}); }
+}
+/* 平移缩放只改 transform */
+function applyView(){
+  const v=$("#view"); if(!v) return;
+  v.setAttribute("transform",`translate(${tx} ${ty}) scale(${sc})`);
+  const pat=$("#dots"), g=gridStep();
+  if(pat){ if(+pat.getAttribute("width")!==g){ pat.setAttribute("width",g); pat.setAttribute("height",g); }
+    pat.setAttribute("patternTransform",`translate(${tx} ${ty}) scale(${sc})`); }
+  placeNodebar();
+}
+function select(n){ sel=n; paint(); }
+function deselect(){ sel=null; $("#nodebar").hidden=true; paint(); }
+function placeNodebar(){
+  const nb=$("#nodebar");
+  if(!sel){ nb.hidden=true; return; }
+  const live=findByUid(sel.uid); if(!live||live._x==null){ nb.hidden=true; return; }
+  sel=live; nb.hidden=false;
+  const x=tx+(live._x+NW/2)*sc, y=ty+(live._y+NH)*sc;
+  nb.style.left=Math.round(x-nb.offsetWidth/2)+"px"; nb.style.top=Math.round(y+16)+"px";
+}
+
+/* ═══════════ 结构操作 ═══════════ */
+function mutate(){ layout(); paint(); saveState(); }
+function addChild(target,name,cat,tier){
+  target=findByUid(target.uid)||ORG.root;
+  const n=newNode(name,cat,tier);
+  (target.children=target.children||[]).push(n);
+  target._collapsed=false;
+  sel=n; mutate();
+  return n;
+}
+function addChildSel(){ if(!sel) return; addChild(sel,"新节点","自建",2); renameSel(); }
+function delSel(){
+  if(!sel) return;
+  if(sel.uid===ORG.root.uid) return toast("根节点不能删，可以清空画板重来");
+  const cnt=countDesc(sel);
+  if(cnt>=3 && !confirm(`「${sel.name}」下还有 ${cnt} 个子节点，一并删除？`)) return;
+  const p=parentOf(sel.uid); if(!p) return;
+  p.children=p.children.filter(k=>k.uid!==sel.uid);
+  delete FIND[sel.uid]; sel=null; $("#nodebar").hidden=true; mutate();
+}
+function clearAll(){
+  if(!confirm("清空整个画板，从头搭建？（自建积木保留）")) return;
+  ORG=defaultOrg(); FIND={}; sel=null; $("#oname").value=ORG.name; renderReviewEmpty(); mutate(); fit();
+}
+function renameSel(){
+  if(!sel) return;
+  const live=findByUid(sel.uid); if(!live) return;
+  const rn=$("#rn"), inp=$("#rn-in");
+  rn.style.left=Math.round(tx+live._x*sc)+"px"; rn.style.top=Math.round(ty+(live._y+NH/2)*sc-18)+"px";
+  rn.style.width=Math.max(140,Math.round(NW*sc))+"px"; rn.hidden=false;
+  inp.value=live.name; inp.focus(); inp.select();
+  inp.onkeydown=e=>{ if(e.key==="Enter") inp.blur(); if(e.key==="Escape"){ inp.value=live.name; inp.blur(); } };
+  inp.onblur=()=>{ rn.hidden=true; const v=inp.value.trim(); if(v&&v!==live.name){ live.name=v; mutate(); } else paint(); };
+}
+
+/* 拖拽已存在节点 → 改隶属 */
+let nd=null, lastTap={uid:null,t:0};
+function hitNode(clientX,clientY){
+  const r=$("#stage").getBoundingClientRect();
+  const mx=(clientX-r.left-tx)/sc, my=(clientY-r.top-ty)/sc;
+  for(const n of nodes){ if(mx>=n._x&&mx<=n._x+NW&&my>=n._y&&my<=n._y+NH) return n; }
+  return null;
+}
+/* 拖动经过节点时的高亮:只移动一个现成的虚线框,不重画整棵树。
+   重画会把鼠标下面的元素换掉,拖放过程中这样做,浏览器可能把「放下」事件发给已经不在页面上的旧元素。 */
+function setDropHover(uid){ if(dropHoverUid!==uid){ dropHoverUid=uid; showDropHover(); } }
+function showDropHover(){
+  const hl=$("#drophl"); if(!hl) return;
+  const n=dropHoverUid&&nodes.find(x=>x.uid===dropHoverUid);
+  if(!n){ hl.setAttribute("visibility","hidden"); return; }
+  hl.setAttribute("x",n._x-5); hl.setAttribute("y",n._y-5); hl.setAttribute("visibility","visible");
+}
+function moveNode(n,t){
+  if(!t||t.uid===n.uid||isDesc(n,t.uid)) return false;      /* 不能挂到自己或自己的下级下面 */
+  const p=parentOf(n.uid); if(!p||t.uid===p.uid) return false;
+  p.children=p.children.filter(k=>k.uid!==n.uid);
+  (t.children=t.children||[]).push(n); t._collapsed=false; sel=n; mutate();
+  toast(`「${n.name}」已改隶属到「${t.name}」下`); return true;
+}
+
+/* ═══════════ 画布交互(平移/缩放/放置) ═══════════ */
+let drag=null;
+function initStage(){
+  const stage=$("#stage"), svg=$("#svg");
+  stage.addEventListener("pointerdown",e=>{
+    if(e.button!==0) return;
+    if(e.target.closest(".nodebar")||e.target.closest(".rn")) return;
+    if(e.target.closest(".cbtn")) return;
+    const g=e.target.closest("#svg .node");
+    if(g){ const n=nodes[+g.dataset.id]; nd={n, sx:e.clientX, sy:e.clientY, moved:false}; return; }
+    drag={x:e.clientX,y:e.clientY,tx,ty,moved:false};
+  });
+  window.addEventListener("pointermove",e=>{
+    if(nd){ if(nd.n.uid!==ORG.root.uid && Math.abs(e.clientX-nd.sx)+Math.abs(e.clientY-nd.sy)>7){ nd.moved=true; document.body.style.cursor="grabbing";
+        const t=hitNode(e.clientX,e.clientY); setDropHover(t&&t.uid!==nd.n.uid&&!isDesc(nd.n,t.uid)?t.uid:null); } return; }
+    if(!drag) return;
+    if(!drag.moved && Math.abs(e.clientX-drag.x)+Math.abs(e.clientY-drag.y)>4){ drag.moved=true; stage.classList.add("grabbing"); }
+    if(drag.moved){ tx=drag.tx+(e.clientX-drag.x); ty=drag.ty+(e.clientY-drag.y); applyView(); }
+  });
+  window.addEventListener("pointerup",e=>{
+    if(nd){ document.body.style.cursor="";
+      const n=nd.n;
+      if(nd.moved){ moveNode(n, hitNode(e.clientX,e.clientY)); setDropHover(null); }
+      else if(!e.target.closest||!e.target.closest(".pin")){
+        const now=Date.now();
+        if(lastTap.uid===n.uid && now-lastTap.t<400){ lastTap={uid:null,t:0}; select(n); renameSel(); }
+        else { lastTap={uid:n.uid,t:now}; select(n); }
+      }
+      nd=null; return;
+    }
+    if(!drag) return;
+    const moved=drag.moved; drag=null; stage.classList.remove("grabbing");
+    if(!moved && e.target.closest && e.target.closest("#stage") && !e.target.closest(".nodebar") && !e.target.closest(".rn") && sel) deselect();
+  });
+  window.addEventListener("pointercancel",()=>{ drag=null; nd=null; stage.classList.remove("grabbing"); setDropHover(null); });
+  svg.addEventListener("click",e=>{ const c=e.target.closest(".cbtn"); if(!c) return;
+    const n=nodes[+c.dataset.id]; n._collapsed=!n._collapsed; layout(); paint(); saveState(); });
+  svg.addEventListener("keydown",e=>{ const g=e.target.closest(".node"); if(!g) return; const n=nodes[+g.dataset.id];
+    if(e.key==="Enter"||e.key===" "){ e.preventDefault(); select(n); }
+    else if(e.key==="F2"){ e.preventDefault(); select(n); renameSel(); } });
+  /* 评判标记的悬停说明 */
+  svg.addEventListener("pointerover",e=>{ const p=e.target.closest(".pin"); if(p) showTip(p.dataset.uid,e); });
+  svg.addEventListener("pointermove",e=>{ if(!$("#tip").hidden) moveTip(e); });
+  svg.addEventListener("pointerout",e=>{ const p=e.target.closest(".pin"); if(p&&!p.contains(e.relatedTarget)) hideTip(); });
+  stage.addEventListener("wheel",e=>{ e.preventDefault(); const r=stage.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+    const f=e.deltaY<0?1.12:1/1.12, ns=Math.min(Math.max(sc*f,0.12),3); tx=mx-(mx-tx)*(ns/sc); ty=my-(my-ty)*(ns/sc); sc=ns; applyView(); },{passive:false});
+  /* 从积木库拖入 */
+  stage.addEventListener("dragover",e=>{ if(!dragBlock)return; e.preventDefault(); e.dataTransfer.dropEffect="copy";
+    const t=hitNode(e.clientX,e.clientY); setDropHover(t?t.uid:null); });
+  stage.addEventListener("dragleave",()=>setDropHover(null));
+  stage.addEventListener("drop",e=>{ if(!dragBlock)return; e.preventDefault();
+    const t=hitNode(e.clientX,e.clientY);
+    if(t){ addChild(t, dragBlock.name, dragBlock.cat, dragBlock.tier); }
+    else { toast("拖到某个节点上，作为它的下级加入"); }
+    setDropHover(null); dragBlock=null; });
+  window.addEventListener("keydown",e=>{
+    if(e.target.tagName==="INPUT"||e.target.tagName==="SELECT"||e.target.tagName==="TEXTAREA")return;
+    if((e.key==="Delete"||e.key==="Backspace")&&sel){ delSel(); e.preventDefault(); }
+  });
+}
+function fit(){
+  const r=$("#stage").getBoundingClientRect(), pad=60;
+  let s=Math.min((r.width-pad*2)/bounds.w,(r.height-pad*2)/bounds.h, 1.1);
+  sc=Math.max(s,0.4);      /* 再小字就看不清了,这时靠拖动和滚轮查看 */
+  const treeW=(bounds.w-HGAP)*sc;
+  tx=treeW<=r.width? (r.width-treeW)/2 : r.width/2-(ORG.root._x+NW/2)*sc;      /* 放得下就整棵居中,放不下就让根节点居中 */
+  ty=48; applyView();
+}
+function zoomBy(f){ const r=$("#stage").getBoundingClientRect(),cx=r.width/2,cy=r.height/2;
+  const ns=Math.min(Math.max(sc*f,0.12),3); tx=cx-(cx-tx)*(ns/sc); ty=cy-(cy-ty)*(ns/sc); sc=ns; applyView(); }
+function expandAll(open){ (function w(n){ if(n.children&&n.children.length){ n._collapsed=!open; n.children.forEach(w);} })(ORG.root); if(!open) ORG.root._collapsed=false; layout(); paint(); fit(); saveState(); }
+
+/* ═══════════ 评判标记的悬停说明 ═══════════ */
+function showTip(uid,e){ const f=FIND[uid]; if(!f)return; const tip=$("#tip");
+  tip.innerHTML=`<b class="lv-${esc(f.level)}">${LV_NAME[f.level]||esc(f.level)}：${esc(f.title)}</b>${esc(f.reason)}`;
+  tip.hidden=false; moveTip(e); }
+function moveTip(e){ const tip=$("#tip"); const w=tip.offsetWidth||280;
+  let x=e.clientX+14, y=e.clientY+14;
+  if(x+w>innerWidth-10) x=e.clientX-w-14;
+  if(y+tip.offsetHeight>innerHeight-10) y=e.clientY-tip.offsetHeight-14;
+  tip.style.left=x+"px"; tip.style.top=y+"px"; }
+function hideTip(){ $("#tip").hidden=true; }
+
+/* ═══════════ AI 点评 ═══════════ */
+let lastReview=null;
+function flatten(){
+  const out=[];
+  (function w(n,d,p){ out.push({id:n.uid,name:n.name,type:n.cat===n.type?n.cat:(n.type+" · "+n.cat),depth:d,parent:p});
+    (n.children||[]).forEach(k=>w(k,d+1,n.uid)); })(ORG.root,0,null);
+  return out;
+}
+function toggleReview(on){ $("#review").hidden=!on; $("#lib").classList.toggle("has-review",on); requestAnimationFrame(()=>{ layout(); paint(); fit(); }); }
+function renderReviewEmpty(){ $("#rv-body").innerHTML='<p class="rv-empty">点上方「AI 点评」，让 OD 顾问看看你搭的组织。</p>'; lastReview=null; }
+function mdLite(md){
+  const lines=String(md||"").split(/\r?\n/); let html="", inUl=false;
+  for(let ln of lines){ ln=ln.trim(); if(!ln){ if(inUl){html+="</ul>";inUl=false;} continue; }
+    ln=esc(ln).replace(/\*\*(.+?)\*\*/g,"<b>$1</b>");
+    if(/^#{2,4}\s*/.test(ln)){ if(inUl){html+="</ul>";inUl=false;} html+=`<h3>${ln.replace(/^#{2,4}\s*/,"")}</h3>`; }
+    else if(/^[-·•]\s+/.test(ln)){ if(!inUl){html+="<ul>";inUl=true;} html+=`<li>${ln.replace(/^[-·•]\s+/,"")}</li>`; }
+    else{ if(inUl){html+="</ul>";inUl=false;} html+=`<p>${ln}</p>`; } }
+  if(inUl)html+="</ul>"; return html;
+}
+/* ── 对标数据:benchmarks.json,格式见 README ── */
+let LIBDATA=null;
+async function loadLib(){
+  if(LIBDATA) return LIBDATA;
+  try{ const r=await fetch("benchmarks.json");
+    if(r.ok){ const j=await r.json(); LIBDATA=(j.companies||[]).filter(c=>c&&c.company&&c.root); } }catch(e){}
+  LIBDATA=LIBDATA||[];
+  return LIBDATA;
+}
+function aiReview(){
+  if(flatten().length<3) return toast("先搭至少 3 个节点，AI 才有得评");
+  openBench();
+}
+async function openBench(){
+  const d=$("#bmodal"); if(!d.open) d.showModal();
+  $("#bq").value=""; await loadLib(); renderBench(""); $("#bq").focus();
+}
+function closeBench(){ const d=$("#bmodal"); if(d.open) d.close(); }
+function renderBench(q){
+  q=(q||"").trim().toLowerCase();
+  if(!LIBDATA||!LIBDATA.length){ $("#bm-list").innerHTML='<p class="rv-empty">没有读到对标数据，可以直接点评。</p>'; return; }
+  const groups=[]; const idx={};
+  LIBDATA.forEach((c,i)=>{
+    if(q && !c.company.toLowerCase().includes(q)) return;
+    const s=c.sector||"其他";
+    if(idx[s]==null){ idx[s]=groups.length; groups.push([s,[]]); }
+    groups[idx[s]][1].push(i);
+  });
+  let html="";
+  groups.forEach(([s,arr])=>{
+    html+=`<p class="bm-grp">${esc(s)}</p>`;
+    arr.forEach(i=>{ const c=LIBDATA[i];
+      html+=`<button type="button" class="bm-row" data-i="${i}"><span class="nm">${esc(c.company)}</span><span class="c">${countTree(c.root)} 节点</span></button>`; });
+  });
+  $("#bm-list").innerHTML=html||'<p class="rv-empty">没有匹配的对标组织。</p>';
+}
+$("#bq").addEventListener("input",e=>renderBench(e.target.value));
+$("#bm-list").addEventListener("click",e=>{ const b=e.target.closest(".bm-row"); if(b) runReview(LIBDATA[+b.dataset.i]); });
+function countTree(root){let c=0;(function w(n){c++;(n.children||[]).forEach(w);})(root);return c;}
+
+/* 硬指标:层级深度 / 管理幅度 / 职能覆盖(在浏览器里算,不经过大模型) */
+function flatTree(root){ const out=[];(function w(n,d){ out.push({name:n.name,type:n.type||"",depth:d});(n.children||[]).forEach(k=>w(k,d+1)); })(root,0); return out; }
+function metricsOf(root){
+  let n=0,maxd=0; const spans=[];
+  (function w(x,d){ n++; maxd=Math.max(maxd,d); const k=x.children||[]; if(k.length) spans.push(k.length); k.forEach(c=>w(c,d+1)); })(root,0);
+  const avg=spans.length? (spans.reduce((a,b)=>a+b,0)/spans.length):0;
+  return {nodes:n, depth:maxd+1, avgSpan:avg?avg.toFixed(1):"–", maxSpan:spans.length?Math.max(...spans):0};
+}
+const FN_KEYS=[["财务",/财务|资金|结算|司库/],["人力",/人力|人资|HR/],["法务",/法务|合规/],["审计",/审计/],["研发",/研发|研究院|研究所|技术中心|实验室|设计院|创新中心/],["营销",/营销|销售|市场/],["制造",/制造|工厂|基地|生产/],["供应链",/供应链|采购|物流|仓储/],["数字化",/数字|信息|IT|大数据|软件/],["战略",/战略|投资/]];
+function fnsOf(root){ const txt=flatTree(root).map(x=>x.name+x.type).join("|"); return FN_KEYS.filter(([k,re])=>re.test(txt)).map(([k])=>k); }
+function cmpHTML(bench){
+  const mine=metricsOf(ORG.root), his=metricsOf(bench.root);
+  const myFns=fnsOf(ORG.root), hisFns=fnsOf(bench.root);
+  const extra=myFns.filter(f=>!hisFns.includes(f));
+  let h=`<p class="rv-sec">硬指标对比：${esc(ORG.name)}和${esc(bench.company)}</p><table class="cmp">
+    <thead><tr><th scope="col">指标</th><th scope="col">${esc(ORG.name.slice(0,8))}</th><th scope="col">${esc(bench.company.slice(0,8))}</th></tr></thead><tbody>
+    <tr><td>节点数</td><td>${mine.nodes}</td><td>${his.nodes}</td></tr>
+    <tr><td>层级深度</td><td>${mine.depth} 层</td><td>${his.depth} 层</td></tr>
+    <tr><td>平均幅度</td><td>${mine.avgSpan}</td><td>${his.avgSpan}</td></tr>
+    <tr><td>最大幅度</td><td>${mine.maxSpan}</td><td>${his.maxSpan}</td></tr></tbody></table>`;
+  h+=`<div class="fnchips">`;
+  FN_KEYS.forEach(([k])=>{ const me=myFns.includes(k), he=hisFns.includes(k);
+    if(me) h+=`<i>${k}，已配置</i>`; else if(he) h+=`<i class="miss">${k}，缺</i>`; });
+  h+=`</div><p class="cmp-note">红色是对方有、你没有的职能${extra.length?`；你独有：${extra.join("、")}`:""}。按关键词粗略识别，仅供参考。</p>`;
+  return h;
+}
+
+const REVIEW_LABEL='<span class="lbl">AI 点评</span>';
+async function runReview(bench){
+  closeBench();
+  const flat=flatten();
+  const btn=$("#btn-review"); btn.disabled=true; btn.setAttribute("aria-busy","true"); btn.innerHTML='<span class="spin" aria-hidden="true"></span><span class="lbl">点评中</span>';
+  toggleReview(true);
+  $("#rv-body").innerHTML=`<p class="rv-empty"><span class="spin" aria-hidden="true"></span>OD 顾问正在审阅你的组织设计${bench?`，并与「${esc(bench.company)}」对标`:""}，约需 15 到 40 秒。</p>`;
+  const payload={org:{name:ORG.name}, nodes:flat};
+  if(bench) payload.benchmark={company:bench.company, nodes:flatTree(bench.root)};
+  let j=null, offline=false;
+  try{
+    const r=await fetch("api/review",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    try{ j=await r.json(); }catch(_){ offline=true; }
+    if(!offline && !r.ok && !(j&&j.error)) offline=true;
+  }catch(e){ offline=true; }
+  try{
+    if(offline) throw new Error(OFFLINE_MSG);
+    if(j.error) throw new Error(j.error);
+    FIND={}; (j.findings||[]).forEach(f=>{ FIND[f.id]=f; });
+    lastReview=j; lastReview.bench=bench?bench.company:null;
+    let html=j.demo?'<p class="rv-demo">演示模式：下面的内容是按几条固定规则生成的，不是大模型的判断，仅用来看流程。</p>':"";
+    html+=bench? cmpHTML(bench) : "";
+    html+=`<p class="rv-sec">点评</p><div class="rv-doc">${mdLite(j.doc)}</div>`;
+    if(j.findings&&j.findings.length){
+      html+=`<p class="rv-sec">逐节点评判，共 ${j.findings.length} 处，点一条定位到节点</p>`;
+      j.findings.forEach(f=>{ const n=findByUid(f.id);
+        html+=`<button type="button" class="fnd ${esc(f.level)}" data-uid="${esc(f.id)}"><span class="fh"><span class="lv-${esc(f.level)}">${LV_NAME[f.level]||esc(f.level)}</span>${esc(n?n.name:f.id)}：${esc(f.title)}</span><span class="fr">${esc(f.reason)}</span></button>`; });
+    }
+    $("#rv-body").innerHTML=html;
+    expandAll(true); paint();
+  }catch(e){
+    $("#rv-body").innerHTML=(bench?cmpHTML(bench):"")+`<p class="rv-empty">${esc(e.message||e)}<br><button type="button" class="btn btn--line btn--sm" data-retry>重试</button></p>`;
+  }
+  btn.disabled=false; btn.removeAttribute("aria-busy");
+  btn.innerHTML=lastReview?'<span class="lbl">重新点评</span>':REVIEW_LABEL;
+}
+$("#rv-body").addEventListener("click",e=>{
+  const f=e.target.closest(".fnd"); if(f) return focusNode(f.dataset.uid);
+  if(e.target.closest("[data-retry]")) aiReview();
+});
+function focusNode(uid){
+  const n=findByUid(uid); if(!n)return;
+  (function open(x){ const p=parentOf(x.uid); if(p){ p._collapsed=false; open(p); } })(n);      /* 确保祖先全展开 */
+  layout();
+  const live=findByUid(uid), r=$("#stage").getBoundingClientRect();
+  tx=r.width/2-(live._x+NW/2)*sc; ty=r.height/2-(live._y+NH/2)*sc;
+  sel=live; paint();
+}
+
+/* ═══════════ 导出 PDF:生成一页白底的打印文档,由浏览器「打印 → 存为 PDF」 ═══════════ */
+function collapseState(root){const m={};let i=0;(function w(n){m[i++]=!!n._collapsed;(n.children||[]).forEach(w);})(root);return m;}
+function restoreCollapse(root,m){let i=0;(function w(n){n._collapsed=m[i++];(n.children||[]).forEach(w);})(root);}
+function exportPDF(){
+  const saved=collapseState(ORG.root);
+  (function w(n){ if(n.children) n._collapsed=false; (n.children||[]).forEach(w); })(ORG.root);
+  layout();
+  /* 导出的图一律用浅色画:打印纸是白的,深色图贴上去很难看 */
+  const rootEl=document.documentElement, prevMode=rootEl.dataset.mode;
+  rootEl.dataset.mode="light"; readPalette();
+  const pad=40, W=bounds.w+pad*2, H=bounds.h+pad*2;
+  const svg=`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><rect width="${W}" height="${H}" fill="${P.paper}"/><g transform="translate(${pad} ${pad})">${treeSVG(true)}</g></svg>`;
+  const total=nodes.length, font=P.font;
+  if(prevMode) rootEl.dataset.mode=prevMode; else delete rootEl.dataset.mode;
+  readPalette();
+  restoreCollapse(ORG.root,saved); layout(); paint();
+  const w=window.open("","_blank");      /* 必须在点击事件里同步打开,否则会被浏览器当成弹窗拦掉 */
+  if(!w) return toast("浏览器拦截了新窗口，请允许弹窗后重试");
+  const img=new Image(), url=URL.createObjectURL(new Blob([svg],{type:'image/svg+xml;charset=utf-8'}));
+  img.onload=()=>{
+    const scale=2, cv=document.createElement('canvas'); cv.width=W*scale; cv.height=H*scale;
+    const ctx=cv.getContext('2d'); ctx.scale(scale,scale); ctx.drawImage(img,0,0); URL.revokeObjectURL(url);
+    const png=cv.toDataURL('image/png');
+    const today=new Date().toISOString().slice(0,10);
+    let extra="";
+    if(lastReview){
+      extra=`<h2>AI 组织点评</h2>${lastReview.demo?'<p class="meta">演示模式：以下内容按固定规则生成，不是大模型的判断。</p>':''}<div class="doc">${mdLite(lastReview.doc)}</div>`;
+      if(lastReview.findings&&lastReview.findings.length){
+        extra+=`<h2>逐节点评判（${lastReview.findings.length} 处）</h2><table><tr><th>节点</th><th>评判</th><th>结论</th><th>理由</th></tr>`;
+        lastReview.findings.forEach(f=>{ const n=findByUid(f.id);
+          extra+=`<tr><td>${esc(n?n.name:f.id)}</td><td>${LV_NAME[f.level]||esc(f.level)}</td><td>${esc(f.title)}</td><td>${esc(f.reason)}</td></tr>`; });
+        extra+=`</table>`;
+      }
+    }
+    w.document.write(`<!DOCTYPE html><html lang="zh-CN"><head><meta charset="utf-8"><title>${esc(ORG.name)}：组织架构设计</title>
+<style>body{font-family:${font.replace(/'/g,'"')};font-size:14px;color:CanvasText;background:Canvas;margin:28px;line-height:1.7;}
+h1{font-size:20px;font-weight:600;margin:0 0 4px;} .meta{font-size:13px;color:GrayText;margin:0 0 20px;}
+img{max-width:100%;border:1px solid GrayText;border-radius:6px;}
+h2{font-size:16px;font-weight:600;margin:20px 0 8px;border-left:2px solid CanvasText;padding-left:8px;}
+.doc h3{font-size:14px;font-weight:600;margin:12px 0 4px;} .doc p{margin:4px 0;}
+table{border-collapse:collapse;width:100%;font-size:13px;} th,td{border:1px solid GrayText;padding:4px 8px;text-align:left;vertical-align:top;}
+th{font-weight:400;color:GrayText;} @media print{ body{margin:12mm;} }</style></head><body>
+<h1>${esc(ORG.name)}：组织架构设计</h1>
+<p class="meta">${today}，共 ${total} 个组织节点${lastReview&&lastReview.bench?`，对标「${esc(lastReview.bench)}」`:''}。</p>
+<img src="${png}" alt="组织架构图">${extra}
+<script>window.onload=()=>setTimeout(()=>window.print(),400);<\/script></body></html>`);
+    w.document.close();
+  };
+  img.onerror=()=>{ toast('导出失败，请重试'); URL.revokeObjectURL(url); try{w.close();}catch(_){} };
+  img.src=url;
+}
+
+/* ═══════════ 启动 ═══════════ */
+function boot(){
+  readPalette();
+  loadState();
+  $("#oname").value=ORG.name;
+  $("#oname").addEventListener("change",()=>{ ORG.name=$("#oname").value.trim()||"我的集团"; $("#oname").value=ORG.name; saveState(); });
+  $("#ccat").innerHTML=CATS.map(([c])=>`<option>${esc(c)}</option>`).join("")+"<option>自建</option>";
+  renderPalette(""); renderReviewEmpty();
+  initStage();
+  layout(); paint(); fit();
+  window.addEventListener("resize",()=>{layout();paint();});
+}
+$("#addcustom").addEventListener("click",e=>{ const f=$("#cform"), open=f.hidden; f.hidden=!open; e.currentTarget.setAttribute("aria-expanded",String(open)); if(open) $("#cname").focus(); });
+$("#t-open").addEventListener("click",()=>expandAll(true));
+$("#t-fold").addEventListener("click",()=>expandAll(false));
+$("#t-out").addEventListener("click",()=>zoomBy(1/1.2));
+$("#t-in").addEventListener("click",()=>zoomBy(1.2));
+$("#t-fit").addEventListener("click",()=>fit());
+$("#t-clear").addEventListener("click",()=>clearAll());
+$("#t-pdf").addEventListener("click",()=>exportPDF());
+$("#btn-review").addEventListener("click",()=>aiReview());
+$("#rv-close").addEventListener("click",()=>toggleReview(false));
+$("#bm-close").addEventListener("click",()=>closeBench());
+$("#bm-skip").addEventListener("click",()=>runReview(null));
+$("#bmodal").addEventListener("click",e=>{ if(e.target===e.currentTarget) closeBench(); });
+$("#nb-add").addEventListener("click",()=>addChildSel());
+$("#nb-rn").addEventListener("click",()=>renameSel());
+$("#nb-del").addEventListener("click",()=>delSel());
+document.addEventListener("colourway",()=>{ if(!ORG) return; readPalette(); paint(); });
+boot();
+</script>
+</body>
+</html>
