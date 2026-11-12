@@ -5,6 +5,8 @@
   · 并发闸门:同时最多 N 个请求打到上游,排队超过一定时间就报「繁忙」而不是无限等
   · 一次调用(含全部重试)有总时限,超了就不再重试
   · JSON 修复:去掉推理段和代码块围栏、截出最外层 {...}、去尾逗号、补右括号,再校验必填字段
+  · 推理型模型:推理过程也占输出长度。发现正文被推理挤没或被截断,就自动加大输出长度重试,
+    并记住这个余量,后面的调用直接用(实测接入推理型模型时不加这一条,长提示词下必然失败)
 """
 import json
 import os
@@ -21,6 +23,18 @@ class LLMError(RuntimeError):
 
 class LLMBusy(LLMError):
     """上游正忙(并发闸满)。"""
+
+
+_THINK = re.compile(r"<think>.*?</think>", re.S)
+BOOST_MAX = 12288
+
+
+def strip_reasoning(text):
+    """去掉正文里的推理段。返回 (正文, 推理是否没写完就被截断)。"""
+    t = _THINK.sub("", text or "")
+    if "<think>" in t:
+        return t.split("<think>", 1)[0].strip(), True
+    return t.strip(), False
 
 
 def _endpoint(base):
@@ -76,6 +90,11 @@ class LLM:
         self.sem = threading.Semaphore(max(1, int(concurrency)))
         self.sem_wait_s, self.call_budget_s = float(sem_wait_s), float(call_budget_s)
         self.extra_tokens = int(extra_tokens)      # 会先推理再作答的模型,推理也占 max_tokens,要额外留余量
+        self.boost = 0                             # 运行中发现输出被截断后自动加的余量(只增不减,到上限为止)
+
+    def _bump(self, max_tokens):
+        """把余量加到「原上限再翻一倍 + 2048」这一档(推理型模型实测够用的量),已经到了就再翻倍。"""
+        self.boost = min(BOOST_MAX, max(self.boost * 2, int(max_tokens) + 2048))
 
     @classmethod
     def from_env(cls, env=None):
@@ -90,7 +109,7 @@ class LLM:
 
     def _post(self, messages, temperature, max_tokens, timeout):
         body = json.dumps({"model": self.model, "messages": messages, "temperature": temperature,
-                           "max_tokens": int(max_tokens) + self.extra_tokens}).encode("utf-8")
+                           "max_tokens": int(max_tokens) + self.extra_tokens + self.boost}).encode("utf-8")
         req = urllib.request.Request(self.url, data=body, headers={
             "Authorization": "Bearer " + self.api_key, "Content-Type": "application/json"})
         try:
@@ -104,7 +123,8 @@ class LLM:
         if data.get("error"):
             raise LLMError("上游报错: %s" % str(data["error"])[:200])
         try:
-            return (data["choices"][0]["message"].get("content") or "").strip()
+            choice = data["choices"][0]
+            return (choice["message"].get("content") or "").strip(), choice.get("finish_reason")
         except (KeyError, IndexError, TypeError, AttributeError):
             raise LLMError("上游返回的格式不对")
 
@@ -118,10 +138,17 @@ class LLM:
             if not self.sem.acquire(timeout=self.sem_wait_s):
                 raise LLMBusy("AI 服务当前繁忙，请稍后再试")
             try:
-                txt = self._post(messages, temperature, max_tokens, timeout)
+                raw, finish = self._post(messages, temperature, max_tokens, timeout)
+                txt, cut = strip_reasoning(raw)
                 if txt:
+                    if finish == "length":         # 正文写到一半被截断:这次先用(后面会尽力修复),下次多给点长度
+                        self._bump(max_tokens)
                     return txt
-                last = LLMError("模型返回空")
+                if cut or finish == "length":      # 输出长度全被推理占了,正文一个字没有
+                    self._bump(max_tokens)
+                    last = LLMError("输出长度被模型的推理过程占满")
+                else:
+                    last = LLMError("模型返回空")
             except LLMBusy:
                 raise
             except Exception as e:

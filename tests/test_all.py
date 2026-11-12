@@ -116,10 +116,23 @@ class ReviewTest(unittest.TestCase):
         out = rv.review({"nodes": nodes(90)}, FakeLLM(fail_chunks={"n40"}))
         self.assertEqual({f["id"] for f in out["findings"]}, {"n0", "n39", "n80", "n89"})
         self.assertTrue(out["doc"])
+        self.assertIn("不完整", out["notice"])                                    # 少了一批要明说
+        self.assertNotIn("notice", rv.review({"nodes": nodes(90)}, FakeLLM()))
+        only_doc = rv.review({"nodes": nodes(30)}, FakeLLM(fail_chunks={"n0"}))  # 评判全失败:只有总体意见
+        self.assertEqual((only_doc["findings"], "只有总体意见" in only_doc["notice"]), ([], True))
         with self.assertRaises(LLMError):
             rv.review({"nodes": nodes(5)}, FakeLLM(fail_overall=LLMError("挂了")))
         with self.assertRaises(LLMBusy):
             rv.review({"nodes": nodes(5)}, FakeLLM(fail_overall=LLMBusy("忙")))
+
+    def test_metrics_computed_by_code(self):
+        ns = [{"name": "总部", "depth": 0}, {"name": "甲部", "depth": 1}, {"name": "甲一组", "depth": 2}, {"name": "甲二组", "depth": 2},
+              {"name": "乙部", "depth": 1}, {"name": "丙部", "depth": 1}]
+        self.assertEqual(rv.metrics(ns), {"count": 6, "levels": 3, "avg_span": 2.5, "max_span": 3, "widest": "总部"})
+        self.assertEqual(rv.metrics([{"name": "只有一个", "depth": 0}])["max_span"], 0)
+        llm = FakeLLM()
+        rv.review({"nodes": nodes(5)}, llm)
+        self.assertTrue(any("程序已算好" in c["user"] and "节点 5 个" in c["user"] for c in llm.calls))      # 指标写进了提示词
 
     def test_benchmark(self):
         llm = FakeLLM()
@@ -188,6 +201,25 @@ class LLMTest(unittest.TestCase):
         path, auth, body = _Upstream.seen[0]
         self.assertEqual((path, auth, body["model"], body["max_tokens"]), ("/v1/chat/completions", "Bearer sk-test", "some-model", 600))
         self.assertEqual([m["role"] for m in body["messages"]], ["system", "user"])
+
+    def test_reasoning_eats_output_then_auto_boost(self):
+        """推理型模型:推理把输出长度占满、正文为空 → 自动加大长度重试,并记住余量。"""
+        cut = (200, {"choices": [{"message": {"content": "<think>想了很久还没想完"}, "finish_reason": "length"}]})
+        ok = (200, {"choices": [{"message": {"content": "<think>想完了</think>\n{\"doc\": \"好了\"}"}, "finish_reason": "stop"}]})
+        _Upstream.queue = [cut, ok, ok]
+        llm = self.llm()
+        self.assertEqual(llm.call_json("s", "u", require=["doc"], max_tokens=1000), {"doc": "好了"})
+        self.assertEqual([x[2]["max_tokens"] for x in _Upstream.seen], [1000, 4048])         # 原上限翻倍再加 2048
+        self.assertEqual(llm.boost, 3048)
+        llm.call_json("s", "u", require=["doc"], max_tokens=1000)                            # 之后的调用直接带上余量
+        self.assertEqual(_Upstream.seen[-1][2]["max_tokens"], 4048)
+        # 正文写到一半被截断:这次尽力修复,同时把余量再加大
+        _Upstream.queue = [(200, {"choices": [{"message": {"content": '{"doc": "写到一半'}, "finish_reason": "length"}]})]
+        self.assertEqual(llm.call_json("s", "u", require=["doc"])["doc"], "写到一半")
+        self.assertEqual(llm.boost, 6096)
+        for _ in range(5):
+            llm._bump(2000)
+        self.assertEqual(llm.boost, 12288)                                                   # 有上限
 
     def test_bad_json_is_repaired_or_retried(self):
         _Upstream.queue = ['<think>先想想 {不是答案}</think>\n```json\n{"doc": "带围栏", "x": [1, 2,],}\n```']

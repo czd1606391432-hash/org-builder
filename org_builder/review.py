@@ -45,12 +45,36 @@ def tree_text(nodes, with_id=True):
                      for n in nodes)
 
 
-def overall_prompt(org_name, tree, truncated, bench_name, bench_tree):
+def metrics(nodes):
+    """硬指标:节点数、层级数、平均管理幅度、最大幅度及其所在节点。nodes 按先根后叶排列,靠 depth 推出上下级。"""
+    kids, stack = {}, []
+    for i, n in enumerate(nodes):
+        while stack and nodes[stack[-1]]["depth"] >= n["depth"]:
+            stack.pop()
+        if stack:
+            kids[stack[-1]] = kids.get(stack[-1], 0) + 1
+        stack.append(i)
+    widest = max(kids, key=kids.get) if kids else None
+    return {"count": len(nodes), "levels": (max(n["depth"] for n in nodes) + 1) if nodes else 0,
+            "avg_span": round(sum(kids.values()) / len(kids), 1) if kids else 0,
+            "max_span": kids[widest] if kids else 0, "widest": nodes[widest]["name"] if kids else ""}
+
+
+def metrics_text(label, nodes):
+    m = metrics(nodes)
+    return "%s:节点 %d 个,层级 %d 层,平均管理幅度 %s,最大幅度 %d(%s)" % (
+        label, m["count"], m["levels"], m["avg_span"], m["max_span"], m["widest"] or "无")
+
+
+def overall_prompt(org_name, tree, truncated, bench_name, bench_tree, facts=""):
     system = ("你是一位资深组织发展(OD)顾问。用户搭了一个虚拟组织架构,请你专业点评其整体设计。\n" + DIMS +
               "\n只评组织设计本身,不臆测业务细节;不要提任何人名。\n"
               "严格输出 JSON,不要 JSON 之外的任何文字:\n"
-              '{"doc":"完整意见文档,markdown,含:## 总体评价 / ## 亮点 / ## 主要问题 / ## 风险提示 / ## 改进建议,400~700字"}')
+              '{"doc":"完整意见文档,markdown,含:## 总体评价 / ## 亮点 / ## 主要问题 / ## 风险提示 / ## 改进建议"}\n'
+              "篇幅:每节两三句,全文一屏以内,不必数字数。直接作答,不要反复推敲措辞。")
     user = "组织名称:%s\n组织架构树(缩进=层级):\n%s" % (org_name, tree)
+    if facts:      # 数节点、算幅度这类事交给程序,模型直接引用;否则推理型模型会把大量输出长度花在数数上
+        user += "\n\n硬指标(程序已算好,直接引用,不要自己再数):\n" + facts
     if truncated:
         user += "\n(注:节点过多已截断,仅评前 %d 个)" % MAX_NODES
     if bench_tree:
@@ -109,11 +133,12 @@ def parse(req):
 
 
 def review(req, llm):
-    """返回 {"doc": markdown, "findings": [{id, level, title, reason}]}。"""
+    """返回 {"doc": markdown, "findings": [{id, level, title, reason}]};结果不完整时多一个 "notice"。"""
     p = parse(req)
     nodes = p["nodes"]
     bench_tree = tree_text(p["bench_nodes"], with_id=False) if p["bench_nodes"] else ""
-    sys_o, user_o = overall_prompt(p["name"], tree_text(nodes), p["truncated"], p["bench_name"], bench_tree)
+    facts = metrics_text("本组织", nodes) + (("\n" + metrics_text("对标组织「%s」" % p["bench_name"], p["bench_nodes"])) if bench_tree else "")
+    sys_o, user_o = overall_prompt(p["name"], tree_text(nodes), p["truncated"], p["bench_name"], bench_tree, facts)
     chunks = [nodes[i:i + CHUNK] for i in range(0, len(nodes), CHUNK)]
 
     def one_chunk(chunk):
@@ -123,17 +148,21 @@ def review(req, llm):
     with ThreadPoolExecutor(max_workers=WORKERS + 1) as pool:
         f_overall = pool.submit(llm.call_json, sys_o, user_o, require=["doc"], temperature=0.4, max_tokens=2600, timeout=150)
         f_chunks = [pool.submit(one_chunk, c) for c in chunks]
-        batches, busy = [], None
-        for f in f_chunks:      # 某一批失败不影响整体,少几条评判而已
+        batches, busy, failed = [], None, 0
+        for f in f_chunks:      # 某一批失败不拖垮整体,但要告诉使用者结果不完整
             try:
                 batches.append(f.result())
             except LLMBusy as e:
-                busy = e
+                busy, failed = e, failed + 1
             except Exception:
-                pass
+                failed += 1
         overall = f_overall.result()      # 总体意见失败则整个请求失败
     doc = str(overall.get("doc") or "").strip()
     findings = merge_findings(batches, {n["id"] for n in nodes})
     if not doc and not findings:
         raise busy or ValueError("模型没有给出点评")
-    return {"doc": doc, "findings": findings}
+    out = {"doc": doc, "findings": findings}
+    if failed:
+        out["notice"] = ("逐节点评判这次没有成功，只有总体意见。可以再点一次重试。" if failed == len(chunks)
+                         else "逐节点评判有一部分没有成功，下面列出的不完整。可以再点一次重试。")
+    return out

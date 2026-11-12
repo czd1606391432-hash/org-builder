@@ -759,6 +759,7 @@ async function runReview(bench){
     FIND={}; (j.findings||[]).forEach(f=>{ FIND[f.id]=f; });
     lastReview=j; lastReview.bench=bench?bench.company:null;
     let html=j.demo?'<p class="rv-demo">演示模式：下面的内容是按几条固定规则生成的，不是大模型的判断，仅用来看流程。</p>':"";
+    if(j.notice) html+=`<p class="rv-demo">${esc(j.notice)}</p>`;
     html+=bench? cmpHTML(bench) : "";
     html+=`<p class="rv-sec">点评</p><div class="rv-doc">${mdLite(j.doc)}</div>`;
     if(j.findings&&j.findings.length){
